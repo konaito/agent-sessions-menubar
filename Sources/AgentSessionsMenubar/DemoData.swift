@@ -28,6 +28,9 @@ enum DemoData {
         ("admin-panel", "Bulk user export", "CSV export streams in chunks, so 1M users no longer time out. Added a progress indicator."),
     ])
 
+    static let claudeUsage = Usage(weekly: 42, session: 17)
+    static let codexUsage = Usage(weekly: 23, session: nil)
+
     private static func make(prefix: String, tool: String, _ rows: [(String, String, String)]) -> [SessionSummary] {
         rows.enumerated().map { i, row in
             SessionSummary(

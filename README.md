@@ -11,6 +11,7 @@ When you run many agent sessions in parallel, it is easy to lose track of which 
 ## Features
 
 - **Two columns**: Claude Code on the left, Codex on the right, 10 sessions each.
+- **Usage limits** next to each column title: weekly and 5-hour usage, for example `18%/1W 4%/5H` (1W = weekly, 5H = 5-hour). A window that the plan does not have is left out, and `—` means the numbers could not be fetched.
 - **Header**: `<project directory> / <session title>`.
 - **Summary line** (first 60 characters):
   - Claude Code: the session's **recap** (the "while you were away" summary) if it is newer than the last message, otherwise the last user/assistant message.
@@ -19,8 +20,8 @@ When you run many agent sessions in parallel, it is easy to lose track of which 
 - **Click to copy a resume command**, for example:
   - `cd /path/to/project && claude --dangerously-skip-permissions -r <session-id>`
   - `cd /path/to/project && codex resume <session-id>`
-- Refreshes when the popup opens and every 30 seconds. Reading is fast (well under a second) because files are scanned from the end.
-- Read-only: it never writes to `~/.claude` or `~/.codex`.
+- Refreshes the lists when the popup opens and every 30 seconds. Reading is fast (well under a second) because files are scanned from the end. Usage limits are refreshed at most every 5 minutes.
+- It never writes to `~/.claude` or `~/.codex`.
 
 > [!WARNING]
 > The copied Claude Code command includes `--dangerously-skip-permissions`, which starts the session **without permission prompts**. Only paste it if that is what you want. To change it, edit `resumeCommand` in `Sources/AgentSessionsMenubar/SessionStore.swift`.
@@ -57,11 +58,21 @@ Messages injected by the harness (for example `<system-reminder>`, `<command-nam
 
 These are **undocumented internal formats** of Claude Code and Codex. They may change in a future release and break this app.
 
+### Usage limits
+
+| Tool | How |
+| --- | --- |
+| Claude Code | Reads Claude Code's OAuth token from the macOS Keychain (`Claude Code-credentials`, via `/usr/bin/security`) and calls `GET https://api.anthropic.com/api/oauth/usage`. The token is only sent to that URL, and redirects are not followed. |
+| Codex | Starts `codex app-server` and asks it for `account/rateLimits/read` over JSON-RPC. The process is stopped once it answers, or after 10 seconds. |
+
+> [!NOTE]
+> This is the only network access the app makes. The first time, macOS may ask whether to allow Keychain access. The usage endpoint is rate-limited (HTTP 429), which is why it is polled at most every 5 minutes. If you also run another usage monitor, both count toward that limit.
+
 ## Development
 
 ```bash
 swift build
-.build/debug/AgentSessionsMenubar --dump           # print what the popup would show, plus resume commands
+.build/debug/AgentSessionsMenubar --dump           # print usage and what the popup would show, plus resume commands
 .build/debug/AgentSessionsMenubar --render out.png # render the popup view to a PNG
 ```
 
