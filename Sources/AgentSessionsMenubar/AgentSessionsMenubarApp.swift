@@ -88,7 +88,8 @@ struct SessionListView: View {
                     Text(copiedID == session.id ? session.resumeCommand : session.snippet)
                         .font(.system(size: 12))
                         .foregroundStyle(copiedID == session.id ? .tertiary : .secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        // 表示中に高さが変わるとポップアップの角丸が崩れるので、本文は常に3行分の高さを確保する
+                        .lineLimit(3, reservesSpace: true)
                         .padding(.leading, 8)
                 }
                 .padding(.leading, 8)
