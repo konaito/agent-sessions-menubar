@@ -11,7 +11,7 @@ When you run many agent sessions in parallel, it is easy to lose track of which 
 ## Features
 
 - **Two columns**: Claude Code on the left, Codex on the right, 10 sessions each.
-- **Usage limits** next to each column title: weekly and 5-hour usage, for example `週 18% · 5h 4%` (週 = weekly). A window that the plan does not have is left out, and `—` means the numbers could not be fetched.
+- **Usage limits** next to each column title: weekly and 5-hour usage, for example `1W 18% · 5H 4%` (1W = weekly, 5H = 5-hour). A window that the plan does not have is left out, and `—` means the numbers could not be fetched.
 - **Header**: `<project directory> / <session title>`.
 - **Summary line** (first 60 characters):
   - Claude Code: the session's **recap** (the "while you were away" summary) if it is newer than the last message, otherwise the last user/assistant message.
