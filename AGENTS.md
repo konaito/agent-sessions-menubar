@@ -14,6 +14,8 @@ Sources/AgentSessionsMenubar/
   AgentSessionsMenubarApp.swift  # @main, MenuBarExtra, SessionListModel (reload), SessionListView, --dump/--render
   SessionStore.swift             # Claude Code: ~/.claude/projects/*/*.jsonl, plus shared helpers (topByActivity, reverse line scan, truncate)
   CodexStore.swift               # Codex: ~/.codex/state_5.sqlite threads + rollout jsonl
+  DemoData.swift                 # fictional sessions for docs/screenshot.png (--render … --demo --dark)
+docs/screenshot.png              # README image; regenerate it with --demo, never from real sessions
 ```
 
 `SessionSummary` is the shared row model. `resumeCommand` is built by each store.
