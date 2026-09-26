@@ -14,6 +14,7 @@ Sources/AgentSessionsMenubar/
   AgentSessionsMenubarApp.swift  # @main, MenuBarExtra, SessionListModel (reload), SessionListView, --dump/--render
   SessionStore.swift             # Claude Code: ~/.claude/projects/*/*.jsonl, plus shared helpers (topByActivity, reverse line scan, truncate)
   CodexStore.swift               # Codex: ~/.codex/state_5.sqlite threads + rollout jsonl
+  UsageStore.swift               # usage limits: Anthropic OAuth usage API (Keychain token) and `codex app-server` account/rateLimits/read
   DemoData.swift                 # fictional sessions for docs/screenshot.png (--render … --demo --dark)
 docs/screenshot.png              # README image; regenerate it with --demo, never from real sessions
 ```
@@ -58,6 +59,8 @@ Codex:
 - `ImageRenderer` (used by `--render`) does not draw `ScrollView` contents.
 - Resume commands: `codex resume <id>` is deliberately left without flags. A user alias such as `codex="codex --yolo"` would otherwise pass `--yolo` twice, which is an error.
 - Never write to `~/.claude` or `~/.codex`. This app is read-only.
+- **Usage limits** (`UsageStore.swift`): the Anthropic endpoint returns 429 when polled often (it happened after a few dozen calls while testing), so keep the 5-minute cadence and avoid calling it in loops. Pass the OAuth token only to `api.anthropic.com` and never follow redirects. Codex windows are told apart by `windowDurationMins` (≥ 7 days = weekly, ≤ 5 h = session), not by `primary`/`secondary`.
+- **Codex DB reads can fail transiently** with `SQLITE_CANTOPEN` on `sqlite3_prepare_v2` (open itself succeeds). Seen more often while `codex app-server` processes were starting or running; the root cause is not known. `CodexStore.recentThreads` retries 3 times and returns nil on failure, and the model then keeps the previous list. Never turn a failed read into an empty list. `reload()` also runs the list read and the usage fetch one after the other, never at the same time.
 
 ## Style
 

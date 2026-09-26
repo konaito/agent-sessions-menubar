@@ -14,18 +14,29 @@ enum CodexStore {
         let updatedAt: Date
     }
 
-    /// 自分で話した CLI / Desktop のセッションを、最後のメッセージが新しい順に最大 maxSessions 件返す
-    static func loadRecent() -> [SessionSummary] {
-        SessionStore.topByActivity(recentThreads().map { ($0, $0.updatedAt) }) { summarize($0) }
+    /// 自分で話した CLI / Desktop のセッションを、最後のメッセージが新しい順に最大 maxSessions 件返す。
+    /// DB を読めなかったときは nil（0 件とは区別し、呼び出し側は前回の一覧を残す）
+    static func loadRecent() -> [SessionSummary]? {
+        guard let threads = recentThreads() else { return nil }
+        return SessionStore.topByActivity(threads.map { ($0, $0.updatedAt) }) { summarize($0) }
+    }
+
+    /// Codex が WAL を書き換えている瞬間は読み取り専用の接続が SQLITE_CANTOPEN などで一時的に失敗するので、少し待ってやり直す
+    static func recentThreads() -> [Thread]? {
+        for attempt in 0..<3 {
+            if attempt > 0 { usleep(200_000) }
+            if let threads = queryThreads() { return threads }
+        }
+        return nil
     }
 
     /// state_5.sqlite の threads から、アーカイブ・サブエージェント・exec・automation を除いて取る
-    static func recentThreads() -> [Thread] {
+    private static func queryThreads() -> [Thread]? {
         let path = codexURL.appending(path: "state_5.sqlite").path
         var db: OpaquePointer?
         guard sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
             sqlite3_close(db)
-            return []
+            return nil
         }
         defer { sqlite3_close(db) }
 
@@ -38,11 +49,13 @@ enum CodexStore {
             ORDER BY updated_at_ms DESC
             """
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(stmt) }
 
         var threads: [Thread] = []
-        while sqlite3_step(stmt) == SQLITE_ROW {
+        var rc = sqlite3_step(stmt)
+        while rc == SQLITE_ROW {
+            defer { rc = sqlite3_step(stmt) }
             func text(_ i: Int32) -> String { sqlite3_column_text(stmt, i).map { String(cString: $0) } ?? "" }
             threads.append(Thread(
                 id: text(0),
@@ -52,7 +65,8 @@ enum CodexStore {
                 updatedAt: Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 4)) / 1000)
             ))
         }
-        return threads
+        // 途中で失敗した場合も、欠けた一覧を返さない
+        return rc == SQLITE_DONE ? threads : nil
     }
 
     static func summarize(_ thread: Thread) -> SessionSummary? {
