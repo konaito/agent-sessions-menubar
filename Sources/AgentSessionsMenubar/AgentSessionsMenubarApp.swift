@@ -112,12 +112,18 @@ struct AgentSessionsMenubarApp: App {
             exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--render"), i + 1 < CommandLine.arguments.count {
-            // 検証用: ポップアップと同じ View を PNG に書き出す
+            // 検証用: ポップアップと同じ View を PNG に書き出す。--demo は架空データ、--dark はダークのポップアップ風の見た目
             MainActor.assumeIsolated {
+                let args = CommandLine.arguments
                 let m = SessionListModel()
-                m.claude = SessionStore.loadRecent()
-                m.codex = CodexStore.loadRecent()
-                let renderer = ImageRenderer(content: SessionListView(model: m).background(Color.white))
+                m.claude = args.contains("--demo") ? DemoData.claude : SessionStore.loadRecent()
+                m.codex = args.contains("--demo") ? DemoData.codex : CodexStore.loadRecent()
+                let dark = args.contains("--dark")
+                let content = SessionListView(model: m)
+                    .background(dark ? Color(nsColor: .windowBackgroundColor) : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: dark ? 12 : 0))
+                    .environment(\.colorScheme, dark ? .dark : .light)
+                let renderer = ImageRenderer(content: content)
                 renderer.scale = 2
                 if let tiff = renderer.nsImage?.tiffRepresentation,
                    let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {

@@ -2,18 +2,9 @@
 
 A tiny macOS menu bar app that shows where each of your recent **Claude Code** and **Codex** sessions left off, and copies the command to resume one with a single click.
 
-```
-┌ ClaudeCode ─────────────────────────┬ Codex ───────────────────────────────┐
-│ my-app / Fix flaky login test       │ api-server / Add rate limiting       │
-│   Tests pass locally; next is to    │   Merged PR #42. Remaining: update   │
-│   run the e2e suite in CI and…      │   the dashboard alert threshold…     │
-│ docs / Rewrite onboarding guide     │ infra / Terraform drift check        │
-│   Draft is done. Waiting for you    │   Found 3 drifted resources in…      │
-│   to pick between option A and…     │                                      │
-│ …                                   │ …                                    │
-└─────────────────────────────────────┴──────────────────────────────────────┘
-          click a row → `cd <project> && <resume command>` is copied
-```
+<p align="center"><img src="docs/screenshot.png" width="680" alt="Popup with recent Claude Code sessions on the left and Codex sessions on the right"></p>
+
+<p align="center"><sub>Sample data. Click a row to copy <code>cd &lt;project&gt; &amp;&amp; &lt;resume command&gt;</code>.</sub></p>
 
 When you run many agent sessions in parallel, it is easy to lose track of which one was doing what. This app lists the 10 most recent sessions of each tool, side by side, with a one-glance summary of their current state.
 
@@ -72,6 +63,12 @@ These are **undocumented internal formats** of Claude Code and Codex. They may c
 swift build
 .build/debug/AgentSessionsMenubar --dump           # print what the popup would show, plus resume commands
 .build/debug/AgentSessionsMenubar --render out.png # render the popup view to a PNG
+```
+
+`docs/screenshot.png` is generated from built-in sample data, so no real sessions are shown:
+
+```bash
+.build/debug/AgentSessionsMenubar --render docs/screenshot.png --demo --dark
 ```
 
 The project layout, data-format notes and verification steps are in [AGENTS.md](AGENTS.md).
