@@ -7,9 +7,9 @@ struct Usage: Sendable, Equatable {
 
     var label: String {
         var parts: [String] = []
-        if let weekly { parts.append("1W \(Int(weekly.rounded()))%") }
-        if let session { parts.append("5H \(Int(session.rounded()))%") }
-        return parts.isEmpty ? "—" : parts.joined(separator: " · ")
+        if let weekly { parts.append("\(Int(weekly.rounded()))%/1W") }
+        if let session { parts.append("\(Int(session.rounded()))%/5H") }
+        return parts.isEmpty ? "—" : parts.joined(separator: " ")
     }
 }
 
