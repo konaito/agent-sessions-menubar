@@ -20,6 +20,7 @@ When you run many agent sessions in parallel, it is easy to lose track of which 
 - **Click to copy a resume command**, for example:
   - `cd /path/to/project && claude --dangerously-skip-permissions -r <session-id>`
   - `cd /path/to/project && codex resume <session-id>`
+- **Refresh button** (↻) before each column title: re-reads that tool's sessions and fetches its usage right away, ignoring the 5-minute interval. Pressing it repeatedly can hit the Anthropic usage endpoint's rate limit (HTTP 429).
 - Refreshes the lists when the popup opens and every 30 seconds. Reading is fast (well under a second) because files are scanned from the end. Usage limits are refreshed at most every 5 minutes.
 - It never writes to `~/.claude` or `~/.codex`.
 
