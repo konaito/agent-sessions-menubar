@@ -60,7 +60,7 @@ Codex:
 - Resume commands: `codex resume <id>` is deliberately left without flags. A user alias such as `codex="codex --yolo"` would otherwise pass `--yolo` twice, which is an error.
 - Never write to `~/.claude` or `~/.codex`. This app is read-only.
 - **Usage limits** (`UsageStore.swift`): the Anthropic endpoint returns 429 when polled often (it happened after a few dozen calls while testing), so keep the 5-minute cadence and avoid calling it in loops. Pass the OAuth token only to `api.anthropic.com` and never follow redirects. Codex windows are told apart by `windowDurationMins` (≥ 7 days = weekly, ≤ 5 h = session), not by `primary`/`secondary`.
-- **Codex DB reads can fail transiently** with `SQLITE_CANTOPEN` on `sqlite3_prepare_v2` (open itself succeeds). Seen more often while `codex app-server` processes were starting or running; the root cause is not known. `CodexStore.recentThreads` retries 3 times and returns nil on failure, and the model then keeps the previous list. Never turn a failed read into an empty list. `reload()` also runs the list read and the usage fetch one after the other, never at the same time.
+- **Codex DB reads can fail transiently** with `SQLITE_CANTOPEN` on `sqlite3_prepare_v2` (open itself succeeds). Seen more often while `codex app-server` processes were starting or running; the root cause is not known. `CodexStore.recentThreads` retries 3 times and returns nil on failure, and the model then keeps the previous list. Never turn a failed read into an empty list. `reload()` also runs the list read and the usage fetch one after the other, never at the same time. A refresh-button press while a reload is running is queued (`pendingForce`) and runs right after it.
 
 ## Style
 

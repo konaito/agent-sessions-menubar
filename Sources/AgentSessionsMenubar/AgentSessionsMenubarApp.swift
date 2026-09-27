@@ -1,14 +1,21 @@
 import AppKit
 import SwiftUI
 
+enum Tool: Hashable, Sendable {
+    case claude, codex
+}
+
 @MainActor
 final class SessionListModel: ObservableObject {
     @Published var claude: [SessionSummary] = []
     @Published var codex: [SessionSummary] = []
     @Published var claudeUsage: Usage?
     @Published var codexUsage: Usage?
+    /// 更新ボタンを押されて、まだ取り直しが終わっていない列
+    @Published var refreshing: Set<Tool> = []
     private var loading = false
-    private var usageFetchedAt = Date.distantPast
+    private var pendingForce: Set<Tool> = []
+    private var usageFetchedAt: [Tool: Date] = [:]
     private var timer: Timer?
 
     init(autoReload: Bool = true) {
@@ -20,14 +27,26 @@ final class SessionListModel: ObservableObject {
         reload()
     }
 
+    /// 更新ボタン: その列の使用量を 5 分の間隔を無視して取り直し、一覧も読み直す
+    func refresh(_ tool: Tool) {
+        refreshing.insert(tool)
+        reload(force: [tool])
+    }
+
     /// 一覧を読んでから、必要なら使用量を取る。
     /// codex app-server の起動と Codex の DB 読み込みが同じプロセス内で重なると DB が SQLITE_CANTOPEN になるので、
-    /// 両者は必ず順番に行い、終わるまで次の読み直しを始めない。
+    /// 両者は必ず順番に行い、終わるまで次の読み直しを始めない（その間に来た強制更新は終わってから続けて行う）。
     /// 使用量はネットワークや codex の起動を伴うので、一覧（30 秒ごと）とは別に 5 分に 1 回までにする
-    func reload() {
-        guard !loading else { return }
+    func reload(force: Set<Tool> = []) {
+        guard !loading else {
+            pendingForce.formUnion(force)
+            return
+        }
         loading = true
-        let needsUsage = Date().timeIntervalSince(usageFetchedAt) >= 5 * 60
+        let now = Date()
+        let usageTools = Set([Tool.claude, .codex].filter {
+            force.contains($0) || now.timeIntervalSince(usageFetchedAt[$0] ?? .distantPast) >= 5 * 60
+        })
         Task.detached(priority: .userInitiated) {
             let claude = SessionStore.loadRecent()
             let codex = CodexStore.loadRecent()
@@ -35,16 +54,29 @@ final class SessionListModel: ObservableObject {
                 self.claude = claude
                 if let codex { self.codex = codex }
             }
-            if needsUsage {
-                let claudeUsage = await ClaudeUsage.fetch()
-                let codexUsage = await CodexUsage.fetch()
+            if usageTools.contains(.claude) {
+                let usage = await ClaudeUsage.fetch()
                 await MainActor.run {
-                    self.claudeUsage = claudeUsage
-                    self.codexUsage = codexUsage
-                    self.usageFetchedAt = Date()
+                    self.claudeUsage = usage
+                    self.usageFetchedAt[.claude] = Date()
                 }
             }
-            await MainActor.run { self.loading = false }
+            if usageTools.contains(.codex) {
+                let usage = await CodexUsage.fetch()
+                await MainActor.run {
+                    self.codexUsage = usage
+                    self.usageFetchedAt[.codex] = Date()
+                }
+            }
+            await MainActor.run {
+                self.loading = false
+                self.refreshing.subtract(force)
+                if !self.pendingForce.isEmpty {
+                    let next = self.pendingForce
+                    self.pendingForce = []
+                    self.reload(force: next)
+                }
+            }
         }
     }
 }
@@ -74,18 +106,32 @@ struct SessionListView: View {
 
     private var sections: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 10) { section("ClaudeCode", model.claude, usage: model.claudeUsage) }
+            VStack(alignment: .leading, spacing: 10) { section("ClaudeCode", .claude, model.claude, usage: model.claudeUsage) }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             Divider()
-            VStack(alignment: .leading, spacing: 10) { section("Codex", model.codex, usage: model.codexUsage) }
+            VStack(alignment: .leading, spacing: 10) { section("Codex", .codex, model.codex, usage: model.codexUsage) }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .padding(12)
     }
 
     @ViewBuilder
-    private func section(_ name: String, _ sessions: [SessionSummary], usage: Usage?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+    private func section(_ name: String, _ tool: Tool, _ sessions: [SessionSummary], usage: Usage?) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            // 取得中はくるくるに差し替える。見出しの高さが変わるとポップアップの角丸が崩れるので枠は固定
+            ZStack {
+                if model.refreshing.contains(tool) {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Button { model.refresh(tool) } label: {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("\(name) の使用量とセッションを取り直す")
+                }
+            }
+            .frame(width: 14, height: 14)
             Text(name)
                 .font(.system(size: 15, weight: .semibold))
             Text(usage?.label ?? "—")
